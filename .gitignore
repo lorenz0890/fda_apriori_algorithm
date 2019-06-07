@@ -176,7 +176,7 @@ pip-selfcheck.json
 .idea/misc.xml
 .idea/modules.xml
 .idea/vcs.xml
-apriori.py
+
 movies.txt
-requirements.txt
+
 testing/
