@@ -2,7 +2,7 @@
 #import os
 #from dotenv import load_dotenv
 #import atexit
-import numpy as np
+
 import itertools
 
 
@@ -37,14 +37,14 @@ class Apriori:
         for line in self.data:
             for word in line:
                 if len(word)>0:
-                    new_node = True
-                    for node in L1:
-                        if word in node.data:
-                            node.support +=1
-                            new_node = False
+                    new_item = True
+                    for item in L1:
+                        if word in item.data:
+                            item.support +=1
+                            new_item = False
                             break
-                    if new_node or len(L1) < 1:
-                        L1.append(Node([word], 1))
+                    if new_item or len(L1) < 1:
+                        L1.append(Item([word], 1))
         return L1
 
     def generate_candidates(self, Ck_1, absolute_min_support, k):
@@ -56,26 +56,26 @@ class Apriori:
         vals = list(set(vals)) # make entries unique
         for comb in itertools.combinations(vals, k): #create permutations of length k
             new_comb = list(comb)
-            new_node = Node(new_comb, 0)
-            for node in Ck_1:
-                if set(node.data).issubset(set(new_comb)):
-                    if node.support >= absolute_min_support: # use a priori information for pruning
-                        if new_node not in Ck:
-                            Ck.append(new_node)
+            new_item = Item(new_comb, 0)
+            for item in Ck_1:
+                if set(item.data).issubset(set(new_comb)):
+                    if item.support >= absolute_min_support: # use a priori information for pruning
+                        if new_item not in Ck:
+                            Ck.append(new_item)
 
         for i in range(len(Ck)):
-            Ck[i].support = self.__calc_support(Ck[i])
+            Ck[i].support = self.calc_support(Ck[i])
 
         return Ck
 
-    def __calc_support(self, item):
+    def calc_support(self, item):
         item.support = 0
         for line in self.data:
             if set(item.data).issubset(set(line)):
                 item.support +=1
         return item.support
 
-class Node:
+class Item:
     def __init__(self, data, support):
         self.data = data
         self.support = support
@@ -92,21 +92,45 @@ def create_output(L, file_name, options):
         file.write("{}:{}".format(item.support,movie_string))
     file.close()
 
-
 if __name__ == '__main__':
     try:
+        #Initialize
         transactions_table = Apriori('movies.txt')
         k=1
         absolute_min_support = 493
         L = transactions_table.find_L1()
-        create_output(L, 'oneItem.txt', 'w')
+
+        #Write results for a) and b)
+        create_output(L, 'oneItems.txt', 'w')
         create_output(L, 'patterns.txt', 'w')
+
+        # Array to store results in-memory for c)
+        results = []
+
+        #Start algorithm, find all combinations in data with specified absolute minimum support
         while len(L) > 0:
             Ck = transactions_table.generate_candidates(L, absolute_min_support, k)
             L = list(filter(lambda item: item.support >= absolute_min_support, Ck))
             k+=1
+            # Append more results for b)
             create_output(L, 'patterns.txt', 'a')
+            results = results + L
 
+
+        #Now on to c)
+        user_favorites = ['The Shape of Water', 'Three Billboards Outside Ebbing, Missouri']
+        user_item = Item(user_favorites, 0)
+        user_item.support = transactions_table.calc_support(user_item)
+
+        #calc confidence for items
+        confidences = []
+        for i, item in enumerate(results):
+            if set(user_item.data).issubset(item.data):
+                confidences.append([i, item.support/user_item.support])
+
+        for elem in confidences:
+            print('Recommended movies: {}'.format(set(results[elem[0]].data).difference(set(user_item.data))))
+            print('Confidence for above movies: {}\n'.format(elem[1]))
     except Exception as e:
         print(e)
     exit()
