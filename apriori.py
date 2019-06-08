@@ -3,7 +3,7 @@
 #from dotenv import load_dotenv
 #import atexit
 import numpy as np
-
+import itertools
 
 
 class Apriori:
@@ -37,73 +37,75 @@ class Apriori:
         for line in self.data:
             for word in line:
                 if len(word)>0:
-                    new_item = True
-                    for item in L1:
-                        if word in item.data:
-                            item.support +=1
-                            new_item = False
+                    new_node = True
+                    for node in L1:
+                        if word in node.data:
+                            node.support +=1
+                            new_node = False
                             break
-
-                    if new_item or len(L1) < 1:
-                        L1.append(Item([word], 1))
+                    if new_node or len(L1) < 1:
+                        L1.append(Node([word], 1))
         return L1
 
-    def generate_candidates(self, Ck_1, min_support): #needs some work, doesnt calc new sets properly
+    def generate_candidates(self, Ck_1, absolute_min_support, k):
         Ck = []
+        vals = []
         for i in range(len(Ck_1)):
-            for j in range(i+1, len(Ck_1)):
-                if Ck_1[i].support >= min_support: # pruning using a proiri property
-                    for elem in Ck_1[j].data:
-                        if elem not in Ck_1[i].data:
-                            new_data = list(Ck_1[i].data)
-                            new_data.append(elem)
-                            Ck.append(Item(new_data, 0))
+            vals = vals + Ck_1[i].data
 
-                if Ck_1[j].support >= min_support:
-                    for elem in Ck_1[i].data:
-                        if elem not in Ck_1[j].data:
-                            new_data = list(Ck_1[j].data)
-                            new_data.append(elem)
-                            Ck.append(Item(new_data, 0))
+        vals = list(set(vals)) # make entries unique
+        for comb in itertools.combinations(vals, k): #create permutations of length k
+            new_comb = list(comb)
+            new_node = Node(new_comb, 0)
+            for node in Ck_1:
+                if set(node.data).issubset(set(new_comb)):
+                    if node.support >= absolute_min_support: # use a priori information for pruning
+                        if new_node not in Ck:
+                            Ck.append(new_node)
+
+        for i in range(len(Ck)):
+            Ck[i].support = self.__calc_support(Ck[i])
 
         return Ck
 
-    def calc_support(self, item):
+    def __calc_support(self, item):
         item.support = 0
         for line in self.data:
-            subset = True
-            for word in item.data:
-                if word not  in line:
-                    subset = False
-            if subset:
+            if set(item.data).issubset(set(line)):
                 item.support +=1
         return item.support
 
-class Item:
+class Node:
     def __init__(self, data, support):
         self.data = data
         self.support = support
 
+def create_output(L, file_name, options):
+    file = open(file_name, options)
+    for item in L:
+        movie_string = item.data[0]
+        for i, movie in enumerate(item.data):
+            if i > 0:
+                movie_string += ';'
+                movie_string+=movie
+        movie_string += '\n'
+        file.write("{}:{}".format(item.support,movie_string))
+    file.close()
+
+
 if __name__ == '__main__':
     try:
         transactions_table = Apriori('movies.txt')
-        #Initialize finding L1
-        L = transactions_table.find_L1()
         k=1
-        min_support = 1500
+        absolute_min_support = 493
+        L = transactions_table.find_L1()
+        create_output(L, 'oneItem.txt', 'w')
+        create_output(L, 'patterns.txt', 'w')
         while len(L) > 0:
-            Ck = transactions_table.generate_candidates(L, min_support)
-            print(len(Ck))
-            for j in range(len(Ck)):
-                Ck[j].support = transactions_table.calc_support(Ck[j])
-            L = list(filter(lambda item: item.support > min_support, Ck))
-            L = list(dict.fromkeys(L))
-            for item in L:
-                print(item.data)
-                print(item.support)
+            Ck = transactions_table.generate_candidates(L, absolute_min_support, k)
+            L = list(filter(lambda item: item.support >= absolute_min_support, Ck))
             k+=1
-            print("ASD")
-            print(len(L))
+            create_output(L, 'patterns.txt', 'a')
 
     except Exception as e:
         print(e)
