@@ -58,7 +58,7 @@ class Apriori:
             new_comb = list(comb)
             new_item = Item(new_comb, 0)
             for item in Ck_1:
-                if set(item.data).issubset(set(new_comb)):
+                if set(item.data).issubset(set(new_comb)): #needs some work
                     if item.support >= absolute_min_support: # use a priori information for pruning
                         if new_item not in Ck:
                             Ck.append(new_item)
@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
         #Write results for a) and b)
         create_output(L, 'oneItems.txt', 'w')
-        create_output(L, 'patterns.txt', 'w')
+        #create_output(L, 'patterns.txt', 'w')
 
         # Array to store results in-memory for c)
         results = []
@@ -111,10 +111,13 @@ if __name__ == '__main__':
         while len(L) > 0:
             Ck = transactions_table.generate_candidates(L, absolute_min_support, k)
             L = list(filter(lambda item: item.support >= absolute_min_support, Ck))
-            k+=1
             # Append more results for b)
-            create_output(L, 'patterns.txt', 'a')
+            if k == 1:
+                create_output(L, 'patterns.txt', 'w')
+            else:
+                create_output(L, 'patterns.txt', 'a')
             results = results + L
+            k += 1
 
 
         #Now on to c)
